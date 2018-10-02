@@ -1,0 +1,16 @@
+警告      2018-10-02 01:23:38  : 找不到电子版excel信息的存放地址
+Tue Oct 02 01:23:38 CST 2018java.io.FileNotFoundException: C:\Users\hasee\Desktop\模板.xls (系统找不到指定的文件。)
+	at java.io.FileInputStream.open0(Native Method)
+	at java.io.FileInputStream.open(Unknown Source)
+	at java.io.FileInputStream.<init>(Unknown Source)
+	at jxl.Workbook.getWorkbook(Workbook.java:213)
+	at jxl.Workbook.getWorkbook(Workbook.java:198)
+	at com.kanlon.tool.JExcelOption.readExcel2(JExcelOption.java:86)
+	at com.kanlon.test.OcrClient.main(OcrClient.java:134)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(Unknown Source)
+	at java.lang.reflect.Method.invoke(Unknown Source)
+	at org.eclipse.jdt.internal.jarinjarloader.JarRsrcLoader.main(JarRsrcLoader.java:58)
+
+严重      2018-10-02 01:23:38  : 要识别文件错误，只能识别图片！！！
