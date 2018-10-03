@@ -35,6 +35,7 @@ import com.kanlon.tool.CustomExceptionTool;
 import com.kanlon.tool.JExcelOption;
 
 import jxl.read.biff.BiffException;
+import jxl.write.WriteException;
 
 /**
  * 百度API调用例子
@@ -79,7 +80,7 @@ public class OcrClient {
 			// 设置在控制台输出
 			logger.setUseParentHandlers(true);
 			// 设置日志输出等级
-			logger.setLevel(Level.INFO);
+			logger.setLevel(Level.WARNING);
 			FileHandler fileHandler = null;
 			fileHandler = new FileHandler(
 					projectPath + "/logs/" + new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(new Date()) + ".log");
@@ -114,7 +115,7 @@ public class OcrClient {
 		 */
 		int num = 0;
 		/**
-		 * 记录错误的序号及错误原因的map集合
+		 * 记录错误的序号及明显的错误（还没核对电子版前的）原因的map集合
 		 */
 		Map<String, String> errorMap = new TreeMap<>();
 
@@ -122,11 +123,9 @@ public class OcrClient {
 		 * 记录与电子版核对的错误的序号及错误原因的map集合
 		 */
 		Map<String, String> checkErrorMap = new TreeMap<>();
-
-		String appId = prop.getProperty("app_id", APP_ID);
-		String apiKey = prop.getProperty("api_key", API_KEY);
-		String secretKey = prop.getProperty("secret_key", SECRET_KEY);
-		AipOcr client = new AipOcr(appId, apiKey, secretKey);
+		// 获取百度接口权限
+		AipOcr client = new AipOcr(prop.getProperty("app_id", APP_ID), prop.getProperty("api_key", API_KEY),
+				prop.getProperty("secret_key", SECRET_KEY));
 		OcrClient ocrClient = new OcrClient();
 		// 要识别照片的存放目录或要识别的照片
 		File fileRoot = new File(prop.getProperty("image_path", "压缩后的奖学金"));
@@ -139,21 +138,18 @@ public class OcrClient {
 		} catch (BiffException | IOException e) {
 			logger.log(Level.WARNING, "找不到电子版excel信息的存放地址\r\n" + CustomExceptionTool.getExceptionMsg(e));
 		}
-
 		// 要存放识别内容的excel
 		String targetExcelPath = prop.getProperty("target_path", "paper_info.xls");
 		// 存放识别内容的list集合
 		List<ArrayList<String>> paperList = new ArrayList<>();
 		// 存放扫描得到的学生信息(txt文件)
 		File fileResult = new File("student_info.txt");
-
 		File[] files = new File[1];
 		if (fileRoot.isDirectory()) {
 			files = fileRoot.listFiles();
 		} else {
 			files[0] = fileRoot;
 		}
-
 		FileWriter fw = null;
 		try {
 			fw = new FileWriter(fileResult);
@@ -161,55 +157,11 @@ public class OcrClient {
 			e.printStackTrace();
 			logger.log(Level.SEVERE, "创建存放学生信息的txt错误！！" + CustomExceptionTool.getExceptionMsg(e));
 		}
-
 		StringBuffer titleBuffer = new StringBuffer("");
-		titleBuffer.append("序号" + "\t" + "文件名" + "\t");
-		titleBuffer.append(TITLE_DEFAULT + "\t");
-		titleBuffer.append(SCHOOL_DEFAULT + "\t");
-		titleBuffer.append(CLASSSTR_DEFAULT + "\t");
-		titleBuffer.append(SIGNDATE_DAFAULT + "\t");
-		titleBuffer.append(DEPARTMENTSIGNDATE_DEFAULT + "\t");
-		titleBuffer.append(SCHOOLSIGNDATE_DEFAULT + "\t");
-		titleBuffer.append(NAME_DEFAULT + "\t");
-		titleBuffer.append(RIGHTID_DEFAULT + "\t");
-		titleBuffer.append(DEPARTMENT_DEFAULT + "\t");
-		titleBuffer.append(MAJOR_DEFAULT + "\t");
-		titleBuffer.append(STUDENTID_DEFAULT + "\t");
-		titleBuffer.append(SEX_DEFAULT + "\t");
-		titleBuffer.append(NATION_DEFAULT + "\t");
-		titleBuffer.append(COMEDATE_DEFAULT + "\t");
-		titleBuffer.append(POORLEVEL_DEFAULT + "\t");
-		titleBuffer.append(STURANK_DEFAULT + "\t");
-		titleBuffer.append(TOTALNUM_DEFAULT + "\t");
-		titleBuffer.append(COMRANK_DEFAULT + "\t");
-		titleBuffer.append("时间（毫秒值）" + "\t");
-		titleBuffer.append("明显错误信息" + "\t");
-		titleBuffer.append("与电子版对比错误信息" + "\r\n");
-		String titleStr = titleBuffer.toString();
 		ArrayList<String> titleList = new ArrayList<>();
-		titleList.add("序号");
-		titleList.add("文件名");
-		titleList.add(TITLE_DEFAULT);
-		titleList.add(SCHOOL_DEFAULT);
-		titleList.add(CLASSSTR_DEFAULT);
-		titleList.add(SIGNDATE_DAFAULT);
-		titleList.add(DEPARTMENTSIGNDATE_DEFAULT);
-		titleList.add(SCHOOLSIGNDATE_DEFAULT);
-		titleList.add(NAME_DEFAULT);
-		titleList.add(RIGHTID_DEFAULT);
-		titleList.add(DEPARTMENT_DEFAULT);
-		titleList.add(MAJOR_DEFAULT);
-		titleList.add(STUDENTID_DEFAULT);
-		titleList.add(SEX_DEFAULT);
-		titleList.add(NATION_DEFAULT);
-		titleList.add(COMEDATE_DEFAULT);
-		titleList.add(POORLEVEL_DEFAULT);
-		titleList.add(STURANK_DEFAULT);
-		titleList.add(TOTALNUM_DEFAULT);
-		titleList.add(COMRANK_DEFAULT);
-		titleList.add("时间（毫秒值）");
-		titleList.add("明显错误信息");
-		titleList.add("与电子版对比错误信息");
+		// 为txt和excel文件初始化标题行
+		ocrClient.addTitleForTxtAndExcel(titleBuffer, titleList);
+		String titleStr = titleBuffer.toString();
 		paperList.add(titleList);
 		System.out.print(titleStr);
 		try {
@@ -222,45 +174,25 @@ public class OcrClient {
 			File file = files[i];
 			// 判断是否是图片
 			if (file.getName().matches(".*\\.(?i)(jpg|jpeg|gif|bmp|png)")) {
-				// 标题
 				String title = TITLE_DEFAULT;
-				// 学校
 				String school = SCHOOL_DEFAULT;
-				// 学院
 				String department = DEPARTMENT_DEFAULT;
-				// 专业
 				String major = MAJOR_DEFAULT;
-				// 姓名
 				String name = NAME_DEFAULT;
-				// 性别
 				String sex = SEX_DEFAULT;
-				// 民族
 				String nation = NATION_DEFAULT;
-				// 入学年月
 				String comeDate = COMEDATE_DEFAULT;
-				// 学号
 				String studentID = STUDENTID_DEFAULT;
-				// 班级
 				String classStr = CLASSSTR_DEFAULT;
-				// 联系电话
 				String phone = PHONE_DEFAULT;
-				// 身份证号
 				String rightID = RIGHTID_DEFAULT;
-				// 家庭经济困难学生认定等级
 				String poorLevel = POORLEVEL_DEFAULT;
-				// 总人数
 				String totalNum = TOTALNUM_DEFAULT;
-				// 学习成绩排名
 				String stuRank = STURANK_DEFAULT;
-				// 综合考评排名(如有):
 				String comRank = COMRANK_DEFAULT;
-				// 签名日期
 				String signDate = SIGNDATE_DAFAULT;
-				// 学院盖章日期
 				String departmentSignDate = DEPARTMENTSIGNDATE_DEFAULT;
-				// 学校盖章日期
 				String schoolSignDate = SCHOOLSIGNDATE_DEFAULT;
-
 				// excel表中map数据
 				HashMap<String, String> map = new HashMap<>();
 				if (list != null && list.size() > i) {
@@ -268,40 +200,54 @@ public class OcrClient {
 				} else {
 					logger.log(Level.WARNING, "电子版excel数据不足");
 				}
-
-				String path = file.getAbsolutePath();
-
-				String jsonOriginStr = "";
-				// 存放识别得到的原始信息
-				JSONArray tempList = new JSONArray();
-				try {
-					JSONObject json = ocrClient.sampleAccurate(client, path);
-					if (json.toString()
-							.equals("{\"error_msg\":\"Open api daily request limit reached\",\"error_code\":17}")) {
-						logger.log(Level.SEVERE, "一天识别次数已经达到上限！！！");
-						System.exit(0);
-					} else if (json.toString()
-							.equals("{\"error_msg\":\"IAM Certification failed\",\"error_code\":14}")) {
-						logger.log(Level.SEVERE, "百度云验证失败，app_id，api_key，secret_key之一填写错误！！！");
-						System.exit(0);
-					}
-					tempList = (JSONArray) json.get("words_result");
-					jsonOriginStr = tempList.toString().substring(0, tempList.toString().length() >> 1);
-				} catch (Exception e) {
-					e.printStackTrace();
-					logger.log(Level.WARNING, "识别该图片失败或者一天识别次数已经达到上限！！！" + CustomExceptionTool.getExceptionMsg(e));
-					continue;
-				}
-				// 输出原始的json格式字符串
-				logger.info(tempList.toString());
 				// 用来核对的临时map集合 (将空值设置为默认值, 检验是否有明显错误,校对是否与电子版一致)
 				HashMap<String, String> checkMap = new HashMap<>();
 				// 明显的错误信息
 				StringBuffer errorMsg = new StringBuffer("");
 				// 与电子版不同的错误信息
 				StringBuffer checkErrorMsg = new StringBuffer("");
+				// 要识别的图片的绝对路径
+				String path = file.getAbsolutePath();
+				// 存放识别得到的原始信息
+				JSONArray tempList = new JSONArray();
+				/**
+				 * 存放识别得到的原始信息前半部分的字符
+				 */
+				String jsonOriginStr = "";
+				JSONObject json = new JSONObject();
 				try {
+					json = ocrClient.sampleAccurate(client, path);
+					tempList = (JSONArray) json.get("words_result");
+				} catch (Exception e) {
+					if ("17".equals(json.get("error_code").toString())) {
+						logger.log(Level.SEVERE, "一天识别次数已经达到上限！！！");
+						// 输出到excel表中
+						try {
+							if (paperList != null && paperList.size() > 0) {
+								option.writeExcel(paperList, targetExcelPath);
+							}
+							System.out.println("纸质版识别内容已经输出到" + targetExcelPath + "文件中了");
+						} catch (WriteException | IOException e1) {
+							logger.log(Level.SEVERE,
+									"target_path中的文件表格被占用或路径错误！！！\n" + CustomExceptionTool.getExceptionMsg(e1));
+						}
+						System.exit(0);
+					} else if ("14".equals(json.get("error_code").toString())) {
+						logger.log(Level.SEVERE, "百度云验证失败，app_id，api_key，secret_key之一填写错误！！！");
+						System.exit(0);
+					} else if ("SDK108".equals(json.get("error_code"))) {
+						logger.log(Level.SEVERE, "网络已断开，请连接网络后重试！！！");
+						System.exit(0);
+					} else {
+						logger.log(Level.WARNING, "识别该图片失败或者其他问题！！！" + CustomExceptionTool.getExceptionMsg(e));
+						continue;
+					}
+				}
+				jsonOriginStr = tempList.toString().substring(0, tempList.toString().length() >> 1);
+				// 输出原始的json格式字符串
+				logger.info(tempList.toString());
 
+				try {
 					for (int j = 0; j < tempList.length() - 2; j++) {
 						// 获取当前循环的值
 						JSONObject jsonID = new JSONObject(tempList.get(j).toString());
@@ -309,10 +255,6 @@ public class OcrClient {
 						// 获取下一个循环的值
 						jsonID = new JSONObject(tempList.get(j + 1).toString());
 						String wordsValue = jsonID.get("words").toString();
-
-						// 获取下两个循环的的值
-						jsonID = new JSONObject(tempList.get(j + 2).toString());
-						String wordsNext2 = jsonID.get("words").toString();
 
 						// 获取标题
 						if (idNum.contains("专科生国家励志奖学金申请审批表")) {
@@ -483,8 +425,9 @@ public class OcrClient {
 						}
 
 						// 检查是否含有书信体
-						if (idNum.contains("尊敬的")) {
-							errorMsg.append("可能申请理由含有书信体；");
+						if (idNum.contains("尊敬的") || idNum.contains("领导:") || idNum.contains("您好")
+								|| idNum.contains("你好")) {
+							errorMsg.append("可能申请理由含有书信体（包含尊敬的或领导:或您好或你好）；");
 						}
 					}
 
@@ -507,21 +450,16 @@ public class OcrClient {
 					checkMap.put(SIGNDATE_DAFAULT, signDate);
 					checkMap.put(DEPARTMENTSIGNDATE_DEFAULT, departmentSignDate);
 					checkMap.put(SCHOOLSIGNDATE_DEFAULT, schoolSignDate);
-
 					// 将空值设置为默认值
 					ocrClient.setNullToDefault(checkMap);
-
 					// 检验是否有明显错误
 					ocrClient.existObviousErr(checkMap, errorMsg);
-
 					// 校对是否与电子版一致
 					ocrClient.equalsWithElec(checkMap, map, checkErrorMsg);
-
 				} catch (Exception e) {
 					logger.log(Level.WARNING,
 							"获取识别内容出现错误！" + CustomExceptionTool.getExceptionMsg(e) + "\n" + "识别得到的原始值：" + tempList);
 				}
-
 				StringBuffer buffer = new StringBuffer("");
 				num = num + 1;
 				buffer.append(num + "\t" + file.getName() + "\t");
@@ -784,7 +722,6 @@ public class OcrClient {
 		if (StringUtils.isEmpty(map.get(PHONE_DEFAULT))) {
 			map.put(PHONE_DEFAULT, PHONE_DEFAULT);
 		}
-
 		if (StringUtils.isEmpty(map.get(RIGHTID_DEFAULT))) {
 			map.put(RIGHTID_DEFAULT, RIGHTID_DEFAULT);
 		}
@@ -820,15 +757,29 @@ public class OcrClient {
 	 * @return
 	 */
 	private StringBuffer existObviousErr(Map<String, String> map, StringBuffer errorMsg) throws Exception {
-		// 检查标题是否错误
-		if (!map.get(TITLE_DEFAULT).equals("(2017-2018学年)本专科生国家励志奖学金申请审批表")) {
-			errorMsg.append("标题错误；");
-		}
-		if (!map.get(SCHOOL_DEFAULT).equals("广东金融学院")) {
-			errorMsg.append("学校写错；");
+		// 暂时不检查学校和标题
+		/*
+		 * if (!map.get(TITLE_DEFAULT).equals("(2017-2018学年)本专科生国家励志奖学金申请审批表"))
+		 * { errorMsg.append("标题错误；"); } if
+		 * (!map.get(SCHOOL_DEFAULT).equals("广东金融学院")) {
+		 * errorMsg.append("学校写错；"); }
+		 */
+		if (!map.get(RIGHTID_DEFAULT).matches("\\d{17}([0-9]|x|X)")) {
+			errorMsg.append("身份证号错误；");
 		}
 		if ((!"女".equals(map.get(SEX_DEFAULT))) && (!"男".equals(map.get(SEX_DEFAULT)))) {
 			errorMsg.append("性别填写错误；");
+		}
+
+		if (!map.get(STUDENTID_DEFAULT).matches("[1]+\\d{8}")) {
+			errorMsg.append("学号错误；");
+		}
+		if (!map.get(CLASSSTR_DEFAULT).matches("\\d{7}") || (map.get(STUDENTID_DEFAULT).matches("[1]+\\d{8}")
+				&& !map.get(CLASSSTR_DEFAULT).equals(map.get(STUDENTID_DEFAULT).substring(0, 7)))) {
+			errorMsg.append("班级错误；");
+		}
+		if (!map.get(PHONE_DEFAULT).matches("\\d{11}")) {
+			errorMsg.append("联系电话错误");
 		}
 		try {
 			if (!map.get(COMEDATE_DEFAULT).substring(0, 4).matches("\\d{4}")) {
@@ -845,19 +796,7 @@ public class OcrClient {
 			logger.log(Level.WARNING, "转换入学年月错误！！" + CustomExceptionTool.getExceptionMsg(e));
 			errorMsg.append("入学年月错误；");
 		}
-		if (!map.get(STUDENTID_DEFAULT).matches("[1]+\\d{8}")) {
-			errorMsg.append("学号错误；");
-		}
-		if (!map.get(CLASSSTR_DEFAULT).matches("\\d{7}") || (map.get(STUDENTID_DEFAULT).matches("[1]+\\d{8}")
-				&& !map.get(CLASSSTR_DEFAULT).equals(map.get(STUDENTID_DEFAULT).substring(0, 7)))) {
-			errorMsg.append("班级错误；");
-		}
-		if (!map.get(PHONE_DEFAULT).matches("\\d{11}")) {
-			errorMsg.append("联系电话错误");
-		}
-		if (!map.get(RIGHTID_DEFAULT).matches("\\d{17}([0-9]|x|X)")) {
-			errorMsg.append("身份证号错误；");
-		}
+
 		if (!map.get(TOTALNUM_DEFAULT).matches("\\d+") || Integer.parseInt(map.get(TOTALNUM_DEFAULT)) > 100) {
 			errorMsg.append("学习总人数可能错误；");
 		}
@@ -870,12 +809,15 @@ public class OcrClient {
 		if ((!map.get(SIGNDATE_DAFAULT).matches("\\d{4}[年]\\d{1,2}[月]\\d{1,2}[日]"))) {
 			errorMsg.append("个人签名日期可能错误；");
 		}
-		if ((!map.get(DEPARTMENTSIGNDATE_DEFAULT).matches("\\d{4}[年]\\d{1,2}[月]\\d{1,2}[日]"))) {
-			errorMsg.append("学院盖章日期可能错误；");
-		}
-		if ((!map.get(SCHOOLSIGNDATE_DEFAULT).matches("\\d{4}[年]\\d{1,2}[月]\\d{1,2}[日]"))) {
-			errorMsg.append("学校盖章日期可能错误；");
-		}
+		// 不核对学院盖章日期和学校盖章日期
+		/*
+		 * if ((!map.get(DEPARTMENTSIGNDATE_DEFAULT).matches(
+		 * "\\d{4}[年]\\d{1,2}[月]\\d{1,2}[日]"))) {
+		 * errorMsg.append("学院盖章日期可能错误；"); } if
+		 * ((!map.get(SCHOOLSIGNDATE_DEFAULT).matches(
+		 * "\\d{4}[年]\\d{1,2}[月]\\d{1,2}[日]"))) {
+		 * errorMsg.append("学校盖章日期可能错误；"); }
+		 */
 		return errorMsg;
 	}
 
@@ -901,38 +843,6 @@ public class OcrClient {
 			checkErrorMsg.append(SCHOOL_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(SCHOOL_DEFAULT) + "，纸质版为"
 					+ paperMap.get(SCHOOL_DEFAULT) + "）；");
 		}
-		if (elecMap.containsKey(DEPARTMENT_DEFAULT)
-				&& (!paperMap.get(DEPARTMENT_DEFAULT).equals(elecMap.get(DEPARTMENT_DEFAULT)))) {
-			checkErrorMsg.append(DEPARTMENT_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(DEPARTMENT_DEFAULT) + "，纸质版为"
-					+ paperMap.get(DEPARTMENT_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(MAJOR_DEFAULT) && (!paperMap.get(MAJOR_DEFAULT).equals(elecMap.get(MAJOR_DEFAULT)))) {
-			checkErrorMsg.append(MAJOR_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(MAJOR_DEFAULT) + "，纸质版为"
-					+ paperMap.get(MAJOR_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(NAME_DEFAULT) && (!paperMap.get(NAME_DEFAULT).equals(elecMap.get(NAME_DEFAULT)))) {
-			checkErrorMsg.append(NAME_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(NAME_DEFAULT) + "，纸质版为"
-					+ paperMap.get(NAME_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(SEX_DEFAULT) && (!paperMap.get(SEX_DEFAULT).equals(elecMap.get(SEX_DEFAULT)))) {
-			checkErrorMsg.append(SEX_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(SEX_DEFAULT) + "，纸质版为"
-					+ paperMap.get(SEX_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(NATION_DEFAULT)
-				&& (!paperMap.get(NATION_DEFAULT).equals(elecMap.get(NATION_DEFAULT)))) {
-			checkErrorMsg.append(NATION_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(NATION_DEFAULT) + "，纸质版为"
-					+ paperMap.get(NATION_DEFAULT) + "）");
-		}
-		if (elecMap.containsKey(COMEDATE_DEFAULT)
-				&& (!elecMap.get(COMEDATE_DEFAULT).equals(paperMap.get(COMEDATE_DEFAULT)))) {
-			checkErrorMsg.append(COMEDATE_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(COMEDATE_DEFAULT) + "，纸质版为"
-					+ paperMap.get(COMEDATE_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(STUDENTID_DEFAULT)
-				&& (!elecMap.get(STUDENTID_DEFAULT).equals(paperMap.get(STUDENTID_DEFAULT)))) {
-			checkErrorMsg.append(STUDENTID_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(STUDENTID_DEFAULT) + "，纸质版为"
-					+ paperMap.get(STUDENTID_DEFAULT) + "）；");
-		}
 		if (elecMap.containsKey(CLASSSTR_DEFAULT)
 				&& (!elecMap.get(CLASSSTR_DEFAULT).equals(paperMap.get(CLASSSTR_DEFAULT)))) {
 			checkErrorMsg.append(CLASSSTR_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(CLASSSTR_DEFAULT) + "，纸质版为"
@@ -941,31 +851,6 @@ public class OcrClient {
 		if (elecMap.containsKey(PHONE_DEFAULT) && (!paperMap.get(PHONE_DEFAULT).equals(elecMap.get(PHONE_DEFAULT)))) {
 			checkErrorMsg.append(PHONE_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(PHONE_DEFAULT) + "，纸质版为"
 					+ paperMap.get(PHONE_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(RIGHTID_DEFAULT)
-				&& (!paperMap.get(RIGHTID_DEFAULT).equalsIgnoreCase(elecMap.get(RIGHTID_DEFAULT)))) {
-			checkErrorMsg.append(RIGHTID_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(RIGHTID_DEFAULT) + "，纸质版为"
-					+ paperMap.get(RIGHTID_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(POORLEVEL_DEFAULT)
-				&& (!paperMap.get(POORLEVEL_DEFAULT).equals(elecMap.get(POORLEVEL_DEFAULT)))) {
-			checkErrorMsg.append(POORLEVEL_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(POORLEVEL_DEFAULT) + "，纸质版为"
-					+ paperMap.get(POORLEVEL_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(TOTALNUM_DEFAULT)
-				&& (!paperMap.get(TOTALNUM_DEFAULT).equals(elecMap.get(TOTALNUM_DEFAULT)))) {
-			checkErrorMsg.append(TOTALNUM_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(TOTALNUM_DEFAULT) + "，纸质版为"
-					+ paperMap.get(TOTALNUM_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(STURANK_DEFAULT)
-				&& (!paperMap.get(STURANK_DEFAULT).equals(elecMap.get(STURANK_DEFAULT)))) {
-			checkErrorMsg.append(STURANK_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(STURANK_DEFAULT) + "，纸质版为"
-					+ paperMap.get(STURANK_DEFAULT) + "）；");
-		}
-		if (elecMap.containsKey(COMRANK_DEFAULT)
-				&& (!paperMap.get(COMRANK_DEFAULT).equals(elecMap.get(COMRANK_DEFAULT)))) {
-			checkErrorMsg.append(COMRANK_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(COMRANK_DEFAULT) + "，纸质版为"
-					+ paperMap.get(COMRANK_DEFAULT) + "）；");
 		}
 		if (elecMap.containsKey(SIGNDATE_DAFAULT)
 				&& (!paperMap.get(SIGNDATE_DAFAULT).equals(elecMap.get(SIGNDATE_DAFAULT)))) {
@@ -982,11 +867,129 @@ public class OcrClient {
 			checkErrorMsg.append(SCHOOLSIGNDATE_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(SCHOOLSIGNDATE_DEFAULT) + "，纸质版为"
 					+ paperMap.get(SCHOOLSIGNDATE_DEFAULT) + "）；");
 		}
+		if (elecMap.containsKey(NAME_DEFAULT) && (!paperMap.get(NAME_DEFAULT).equals(elecMap.get(NAME_DEFAULT)))) {
+			checkErrorMsg.append(NAME_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(NAME_DEFAULT) + "，纸质版为"
+					+ paperMap.get(NAME_DEFAULT) + "）；");
+		}
+
+		if (elecMap.containsKey(RIGHTID_DEFAULT)
+				&& (!paperMap.get(RIGHTID_DEFAULT).equalsIgnoreCase(elecMap.get(RIGHTID_DEFAULT)))) {
+			checkErrorMsg.append(RIGHTID_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(RIGHTID_DEFAULT) + "，纸质版为"
+					+ paperMap.get(RIGHTID_DEFAULT) + "）；");
+		}
+
+		if (elecMap.containsKey(DEPARTMENT_DEFAULT)
+				&& (!paperMap.get(DEPARTMENT_DEFAULT).equals(elecMap.get(DEPARTMENT_DEFAULT)))) {
+			checkErrorMsg.append(DEPARTMENT_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(DEPARTMENT_DEFAULT) + "，纸质版为"
+					+ paperMap.get(DEPARTMENT_DEFAULT) + "）；");
+		}
+		if (elecMap.containsKey(MAJOR_DEFAULT) && (!paperMap.get(MAJOR_DEFAULT).equals(elecMap.get(MAJOR_DEFAULT)))) {
+			checkErrorMsg.append(MAJOR_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(MAJOR_DEFAULT) + "，纸质版为"
+					+ paperMap.get(MAJOR_DEFAULT) + "）；");
+		}
+
+		if (elecMap.containsKey(STUDENTID_DEFAULT)
+				&& (!elecMap.get(STUDENTID_DEFAULT).equals(paperMap.get(STUDENTID_DEFAULT)))) {
+			checkErrorMsg.append(STUDENTID_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(STUDENTID_DEFAULT) + "，纸质版为"
+					+ paperMap.get(STUDENTID_DEFAULT) + "）；");
+		}
+
+		if (elecMap.containsKey(SEX_DEFAULT) && (!paperMap.get(SEX_DEFAULT).equals(elecMap.get(SEX_DEFAULT)))) {
+			checkErrorMsg.append(SEX_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(SEX_DEFAULT) + "，纸质版为"
+					+ paperMap.get(SEX_DEFAULT) + "）；");
+		}
+		if (elecMap.containsKey(NATION_DEFAULT)
+				&& (!paperMap.get(NATION_DEFAULT).equals(elecMap.get(NATION_DEFAULT)))) {
+			checkErrorMsg.append(NATION_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(NATION_DEFAULT) + "，纸质版为"
+					+ paperMap.get(NATION_DEFAULT) + "）");
+		}
+		if (elecMap.containsKey(COMEDATE_DEFAULT)
+				&& (!elecMap.get(COMEDATE_DEFAULT).equals(paperMap.get(COMEDATE_DEFAULT)))) {
+			checkErrorMsg.append(COMEDATE_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(COMEDATE_DEFAULT) + "，纸质版为"
+					+ paperMap.get(COMEDATE_DEFAULT) + "）；");
+		}
+
+		if (elecMap.containsKey(POORLEVEL_DEFAULT)
+				&& (!paperMap.get(POORLEVEL_DEFAULT).equals(elecMap.get(POORLEVEL_DEFAULT)))) {
+			checkErrorMsg.append(POORLEVEL_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(POORLEVEL_DEFAULT) + "，纸质版为"
+					+ paperMap.get(POORLEVEL_DEFAULT) + "）；");
+		}
+		if (elecMap.containsKey(STURANK_DEFAULT)
+				&& (!paperMap.get(STURANK_DEFAULT).equals(elecMap.get(STURANK_DEFAULT)))) {
+			checkErrorMsg.append(STURANK_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(STURANK_DEFAULT) + "，纸质版为"
+					+ paperMap.get(STURANK_DEFAULT) + "）；");
+		}
+		if (elecMap.containsKey(TOTALNUM_DEFAULT)
+				&& (!paperMap.get(TOTALNUM_DEFAULT).equals(elecMap.get(TOTALNUM_DEFAULT)))) {
+			checkErrorMsg.append(TOTALNUM_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(TOTALNUM_DEFAULT) + "，纸质版为"
+					+ paperMap.get(TOTALNUM_DEFAULT) + "）；");
+		}
+		if (elecMap.containsKey(COMRANK_DEFAULT)
+				&& (!paperMap.get(COMRANK_DEFAULT).equals(elecMap.get(COMRANK_DEFAULT)))) {
+			checkErrorMsg.append(COMRANK_DEFAULT + "与电子版不一致（电子版为" + elecMap.get(COMRANK_DEFAULT) + "，纸质版为"
+					+ paperMap.get(COMRANK_DEFAULT) + "）；");
+		}
 
 		if (StringUtils.isEmpty(checkErrorMsg.toString())) {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * 为txt和excel表格拼接标题
+	 *
+	 * @param titleBuffer
+	 *            txt文件的标题
+	 * @param titleList
+	 *            excel文件的标题
+	 */
+	public void addTitleForTxtAndExcel(StringBuffer titleBuffer, ArrayList<String> titleList) {
+		titleBuffer.append("序号" + "\t" + "文件名" + "\t");
+		titleBuffer.append(TITLE_DEFAULT + "\t");
+		titleBuffer.append(SCHOOL_DEFAULT + "\t");
+		titleBuffer.append(CLASSSTR_DEFAULT + "\t");
+		titleBuffer.append(SIGNDATE_DAFAULT + "\t");
+		titleBuffer.append(DEPARTMENTSIGNDATE_DEFAULT + "\t");
+		titleBuffer.append(SCHOOLSIGNDATE_DEFAULT + "\t");
+		titleBuffer.append(NAME_DEFAULT + "\t");
+		titleBuffer.append(RIGHTID_DEFAULT + "\t");
+		titleBuffer.append(DEPARTMENT_DEFAULT + "\t");
+		titleBuffer.append(MAJOR_DEFAULT + "\t");
+		titleBuffer.append(STUDENTID_DEFAULT + "\t");
+		titleBuffer.append(SEX_DEFAULT + "\t");
+		titleBuffer.append(NATION_DEFAULT + "\t");
+		titleBuffer.append(COMEDATE_DEFAULT + "\t");
+		titleBuffer.append(POORLEVEL_DEFAULT + "\t");
+		titleBuffer.append(STURANK_DEFAULT + "\t");
+		titleBuffer.append(TOTALNUM_DEFAULT + "\t");
+		titleBuffer.append(COMRANK_DEFAULT + "\t");
+		titleBuffer.append("时间（毫秒值）" + "\t");
+		titleBuffer.append("明显错误信息" + "\t");
+		titleBuffer.append("与电子版对比错误信息" + "\r\n");
+		titleList.add("序号");
+		titleList.add("文件名");
+		titleList.add(TITLE_DEFAULT);
+		titleList.add(SCHOOL_DEFAULT);
+		titleList.add(CLASSSTR_DEFAULT);
+		titleList.add(SIGNDATE_DAFAULT);
+		titleList.add(DEPARTMENTSIGNDATE_DEFAULT);
+		titleList.add(SCHOOLSIGNDATE_DEFAULT);
+		titleList.add(NAME_DEFAULT);
+		titleList.add(RIGHTID_DEFAULT);
+		titleList.add(DEPARTMENT_DEFAULT);
+		titleList.add(MAJOR_DEFAULT);
+		titleList.add(STUDENTID_DEFAULT);
+		titleList.add(SEX_DEFAULT);
+		titleList.add(NATION_DEFAULT);
+		titleList.add(COMEDATE_DEFAULT);
+		titleList.add(POORLEVEL_DEFAULT);
+		titleList.add(STURANK_DEFAULT);
+		titleList.add(TOTALNUM_DEFAULT);
+		titleList.add(COMRANK_DEFAULT);
+		titleList.add("时间（毫秒值）");
+		titleList.add("明显错误信息");
+		titleList.add("与电子版对比错误信息");
 	}
 
 }
