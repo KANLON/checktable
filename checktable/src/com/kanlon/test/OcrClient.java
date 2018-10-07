@@ -333,7 +333,7 @@ public class OcrClient {
 							classStr = ocrClient.getSubStr(idNum, CLASSSTR_DEFAULT, "联系");
 						} else if (CLASSSTR_DEFAULT.equals(idNum)) {
 							classStr = ocrClient.cutByRegex(jsonOriginStr.substring(140, jsonOriginStr.length()),
-									"\\D*[班别]\\D*(\\d{0,9})\\D*[联系电话]");
+									"\\D*班别\\D*(\\d{0,9})\\D*联系电话");
 						}
 						// 获取联系电话
 						if (PHONE_DEFAULT.equals(idNum)) {
@@ -347,16 +347,18 @@ public class OcrClient {
 							rightID = wordsValue;
 						} else if (RIGHTID_DEFAULT.equals(rightID) && idNum.contains(RIGHTID_DEFAULT)) {
 							// 获取身份证号
-							rightID = ocrClient.cutByRegex(idNum, ".*[身份证号].*(\\d{17}[\\d|x|X]{1}).*");
+							rightID = ocrClient.cutByRegex(idNum, ".*身份证号.*(\\d{17}[\\dxX]{1}).*");
 						}
 
 						// 获取家庭经济困难学生认定等级
-						if (idNum.equals("口一般困难口比较困难特殊困难") || idNum.equals("口一般困难口比较闲难特殊困难")
-								|| idNum.equals("家庭经济困难学生认定等级口一般困难口比较困难特殊困难")) {
+						if ((idNum.equals("口一般困难口比较困难特殊困难") || idNum.equals("口一般困难口比较闲难特殊困难")
+								|| idNum.equals("家庭经济困难学生认定等级口一般困难口比较困难特殊困难")) && poorLevel.equals(POORLEVEL_DEFAULT)) {
 							poorLevel = "特殊困难";
-						} else if (idNum.equals("口一般困难比较困难口特殊困难") || idNum.equals("家庭经济困难学生认定等级口一般困难比较困难口特殊困难")) {
+						} else if ((idNum.equals("口一般困难比较困难口特殊困难") || idNum.equals("家庭经济困难学生认定等级口一般困难比较困难口特殊困难"))
+								&& poorLevel.equals(POORLEVEL_DEFAULT)) {
 							poorLevel = "比较困难";
-						} else if (idNum.equals("一般困难口比较困难口特殊困难") || idNum.equals("家庭经济困难学生认定等级一般困难口比较困难口特殊困难")) {
+						} else if ((idNum.equals("一般困难口比较困难口特殊困难") || idNum.equals("家庭经济困难学生认定等级一般困难口比较困难口特殊困难"))
+								&& poorLevel.equals(POORLEVEL_DEFAULT)) {
 							poorLevel = "一般困难";
 						} else if (idNum.equals("口一般困难口比较困难口特殊困难") || idNum.equals("一般困难比较困难口特殊困难")
 								|| idNum.equals("口一般困难比较困难特殊困难") || idNum.equals("一般困难比较困难特殊困难")
@@ -385,10 +387,10 @@ public class OcrClient {
 						if (idNum.contains("习成绩排名") && STURANK_DEFAULT.equals(stuRank)) {
 							// 如果字符太长，会查找不到
 							stuRank = ocrClient.cutByRegex(jsonOriginStr.substring(280, jsonOriginStr.length()),
-									".*[习成绩排名]\\D*(\\d{0,3})\\D*[合考评].*");
+									".*习成绩排名\\D*(\\d{0,3})\\D*合考评.*");
 							if (StringUtils.isEmpty(stuRank)) {
 								stuRank = ocrClient.cutByRegex(jsonOriginStr.substring(280, jsonOriginStr.length()),
-										".*[习成绩排名]\\D*(\\d{0,3})\\D*[修课].*");
+										".*习成绩排名\\D*(\\d{0,3})\\D*修课.*");
 							}
 						}
 
@@ -399,29 +401,31 @@ public class OcrClient {
 							comRank = wordsValue;
 						} else if (COMRANK_DEFAULT.equals(comRank)) {
 							comRank = ocrClient.cutByRegex(jsonOriginStr.substring(160, jsonOriginStr.length()),
-									".*[考评排名]\\D*(\\d{0,3})\\D*[修课]{1}.*");
+									".*考评排名\\D*(\\d{0,3})\\D*修课{1}.*");
 						}
 
 						// 获取个人签名日期
 						if (SIGNDATE_DAFAULT.equals(signDate)) {
-							signDate = ocrClient.cutByRegex(
-									tempList.toString().substring(tempList.toString().length() >> 1,
-											tempList.toString().length()),
-									".*[请人签名].*(\\d{4}[年]\\d{0,2}[月]\\d{0,2}[日]).*[推荐].*");
+							signDate = ocrClient
+									.cutByRegex(
+											tempList.toString().substring(tempList.toString().length() >> 1,
+													tempList.toString().length()),
+											".*请人签名.*(\\d{4}年\\d{0,2}月\\d{0,2}日).*推荐.*");
 						}
 						// 获取学院签名日期
 						if (DEPARTMENTSIGNDATE_DEFAULT.equals(departmentSignDate)) {
 							departmentSignDate = ocrClient.cutByRegex(
 									tempList.toString().substring(tempList.toString().length() >> 1,
 											tempList.toString().length()),
-									".*[意推荐].*(\\d{4}[年]\\d{0,2}[月]\\d{0,2}[日]).*[评审].*");
+									".*意推荐.*(\\d{4}年\\d{0,2}月\\d{0,2}[日]).*评审.*");
 						}
 						// 获取学校签名日期
 						if (SCHOOLSIGNDATE_DEFAULT.equals(schoolSignDate)) {
-							schoolSignDate = ocrClient.cutByRegex(
-									tempList.toString().substring(tempList.toString().length() >> 1,
-											tempList.toString().length()),
-									".*[经评审].*(\\d{4}[年]\\d{0,2}[月]\\d{0,2}[日]).*[东省].*");
+							schoolSignDate = ocrClient
+									.cutByRegex(
+											tempList.toString().substring(tempList.toString().length() >> 1,
+													tempList.toString().length()),
+											".*经评审.*(\\d{4}年\\d{0,2}月\\d{0,2}日).*东省.*");
 						}
 
 						// 检查是否含有书信体
