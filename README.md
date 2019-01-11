@@ -25,7 +25,7 @@
 
 ### 使用示范动画
 <img alt="使用示范动画" src="https://raw.githubusercontent.com/KANLON/checktable/master/img/check-table.gif"/>
-<img alt="使用示范动画2" src="https://raw.githubusercontent.com/KANLON/checktable/master/img/check-table.gif"/>
+<img alt="使用示范动画2" src="https://raw.githubusercontent.com/KANLON/checktable/master/img/check-table2.gif"/>
 
 
 
